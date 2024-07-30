@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"os"
+	"time"
 )
 
 func main() {
@@ -28,7 +30,7 @@ func main() {
 	app.Run(os.Args)
 }
 
-func start_program(context *cli.Context) error {
+func start_program(cliCtx *cli.Context) error {
 	network := &Network{}
 	host, port, err := network.Bind(0)
 	if err != nil {
@@ -42,5 +44,11 @@ func start_program(context *cli.Context) error {
 			fmt.Printf("Error closing connection: %v\n", err)
 		}
 	}()
+	ctx := context.Background()
+	game, cancel := NewGame(ctx)
+	game = game
+	time.Sleep(time.Duration(5) * time.Second)
+	defer cancel()
+	time.Sleep(time.Duration(500) * time.Millisecond)
 	return nil
 }
