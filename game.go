@@ -5,15 +5,15 @@ import (
 	tl "github.com/phughk/termloop"
 )
 
-type Game struct {
+type FullTerminalGame struct {
 	tlGame *tl.Game
 }
 
-func NewGame(ctx context.Context) (*Game, context.CancelFunc) {
+func NewGame(ctx context.Context) (*FullTerminalGame, context.CancelFunc) {
 	g := tl.NewGame()
 	g.Screen().SetFps(60)
 	ctx, cancel := context.WithCancel(ctx)
-	game := &Game{tlGame: g}
+	game := &FullTerminalGame{tlGame: g}
 	go g.StartCtx(ctx)
 	return game, cancel
 }

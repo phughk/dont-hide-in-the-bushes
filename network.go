@@ -58,7 +58,7 @@ func (n *Network) Bind(req_port int) (string, int, error) {
 				time.Sleep(time.Duration(30) * time.Second)
 				_, _, err := GetIPAndForwardPort(ctx, uint16(externalPort), host, uint16(port))
 				if err != nil {
-					logrus.Errorf("Failed to renew upnp: %e", err)
+					logrus.Errorf("Failed to renew upnp: %+v", err)
 					break
 				}
 			}
