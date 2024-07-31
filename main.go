@@ -49,7 +49,7 @@ func start_program(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	game.StartGame()
+	game.StartGame(ctx)
 
 	//game, cancel := NewGame(ctx)
 	//game = game

@@ -46,7 +46,13 @@ func (n *Network) Bind(req_port int) (string, int, error) {
 	ctx := context.Background()
 	externalPort := port
 	var port_u16 uint16 = 0
-	host, port_u16, err = GetIPAndForwardPort(ctx, uint16(externalPort), host, uint16(port))
+	// 1 hour
+	lease_seconds := uint32(3600)
+	client, err := PickRouterClient(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	host, port_u16, err = GetIPAndForwardPort(client, uint16(externalPort), host, uint16(port), lease_seconds)
 	port = int(port_u16)
 	if err != nil {
 		return "", 0, err
@@ -54,9 +60,9 @@ func (n *Network) Bind(req_port int) (string, int, error) {
 		// start a function to renew request
 		go func() {
 			for {
-				// every 30s renew the port
-				time.Sleep(time.Duration(30) * time.Second)
-				_, _, err := GetIPAndForwardPort(ctx, uint16(externalPort), host, uint16(port))
+				// every period, renew the port
+				time.Sleep(time.Duration(lease_seconds+1) * time.Second)
+				_, _, err := GetIPAndForwardPort(client, uint16(externalPort), host, uint16(port), lease_seconds)
 				if err != nil {
 					logrus.Errorf("Failed to renew upnp: %+v", err)
 					break

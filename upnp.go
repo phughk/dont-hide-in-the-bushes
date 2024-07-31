@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"github.com/huin/goupnp/dcps/internetgateway2"
+	"github.com/huin/goupnp/soap"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -55,24 +58,25 @@ func PickRouterClient(ctx context.Context) (RouterClient, error) {
 	// Trivial handling for where we find exactly one device to talk to, you
 	// might want to provide more flexible handling than this if multiple
 	// devices are found.
+	fmt.Printf("There are [%d, %d, %d] clients\n", len(ip2Clients), len(ip1Clients), len(ppp1Clients))
 	switch {
 	case len(ip2Clients) == 1:
+		fmt.Println("Picking router client 1")
 		return ip2Clients[0], nil
 	case len(ip1Clients) == 1:
+		fmt.Println("Picking router client 2")
 		return ip1Clients[0], nil
 	case len(ppp1Clients) == 1:
+		fmt.Println("Picking router client 3")
 		return ppp1Clients[0], nil
 	default:
 		return nil, errors.New("multiple or no services found")
 	}
 }
 
-func GetIPAndForwardPort(ctx context.Context, externalPort uint16, internalHost string, internalPort uint16) (string, uint16, error) {
-	client, err := PickRouterClient(ctx)
-	if err != nil {
-		return "", 0, err
-	}
+const SOAP_ERR_MAPPED = 718
 
+func GetIPAndForwardPort(client RouterClient, externalPort uint16, internalHost string, internalPort uint16, lease_duration_seconds uint32) (string, uint16, error) {
 	externalIP, err := client.GetExternalIPAddress()
 	if err != nil {
 		return "", 0, err
@@ -94,14 +98,27 @@ func GetIPAndForwardPort(ctx context.Context, externalPort uint16, internalHost 
 		// Enabled:
 		true,
 		// Informational description for the client requesting the port forwarding.
-		"DontHidInTheBushes",
+		"DontHideInTheBushes",
 		// How long should the port forward last for in seconds.
 		// If you want to keep it open for longer and potentially across router
 		// resets, you might want to periodically request before this elapses.
-		3600,
+		lease_duration_seconds,
 	)
 	if err != nil {
-		return "", 0, err
+		if soapErr, ok := err.(*soap.SOAPFaultError); ok {
+			if soapErr.Detail.UPnPError.Errorcode == SOAP_ERR_MAPPED {
+				logrus.Info("Failed to renew lease, port already mapped")
+			} else {
+				xmlErr, serErr := xml.Marshal(soapErr)
+				if serErr != nil {
+					return "", 0, fmt.Errorf("unhandled soap error: %+v", soapErr)
+				} else {
+					return "", 0, fmt.Errorf("unhandled soap error: %+v", string(xmlErr))
+				}
+			}
+		} else {
+			return "", 0, fmt.Errorf("not a soap error: %+v", err)
+		}
 	}
 	return externalIP, externalPort, nil
 }
